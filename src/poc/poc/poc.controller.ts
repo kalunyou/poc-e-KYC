@@ -3,10 +3,10 @@ import {
   ClassSerializerInterceptor,
   Controller,
   Post,
-  UploadedFile,
+  UploadedFiles,
   UseInterceptors,
 } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
+import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { ApiConsumes, ApiTags } from '@nestjs/swagger';
 
 import { PocService } from 'src/poc/poc/poc.service';
@@ -19,14 +19,23 @@ export class PocController {
   constructor(private readonly pocService: PocService) {}
 
   @ApiConsumes('multipart/form-data')
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(
+    FileFieldsInterceptor([
+      { name: 'sourceImage', maxCount: 1 },
+      { name: 'targetImage', maxCount: 1 },
+    ]),
+  )
   @Post('verify')
   async verify(
     @Body() dto: PocVerifyDto,
-    @UploadedFile()
-    file: Express.Multer.File,
+    @UploadedFiles()
+    files: {
+      sourceImage?: Express.Multer.File[];
+      targetImage?: Express.Multer.File[];
+    },
   ) {
-    dto.file = file;
+    dto.sourceImage = files.sourceImage[0];
+    dto.targetImage = files.targetImage[0];
     return this.pocService.verify(dto);
   }
 }

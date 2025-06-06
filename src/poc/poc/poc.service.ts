@@ -1,27 +1,36 @@
 import { Injectable } from '@nestjs/common';
+import { v4 as uuidv4 } from 'uuid';
 
-import { AzureAiVisionGatewayService } from 'src/azure-ai-vision-gateway/azure-ai-vision-gateway/azure-ai-vision-gateway.service';
-import { FaceDetectionRequest } from 'src/azure-ai-vision-gateway/azure-ai-vision-gateway/types/request';
 import { PocVerifyDto } from 'src/poc/poc/dto/poc-verify.dto';
+import { S3StorageService } from 'src/aws/storage/s3-storage.service';
+import { RekognitionService } from 'src/aws/rekognition/rekognition.service';
 
 @Injectable()
 export class PocService {
   constructor(
-    private readonly azureAiVisionGatewayService: AzureAiVisionGatewayService,
+    private readonly s3StorageService: S3StorageService,
+    private readonly rekognitionService: RekognitionService,
   ) {}
 
   async verify(dto: PocVerifyDto) {
-    const detectBody: FaceDetectionRequest = {
-      imageContent: dto.file.buffer,
-    };
+    const uploadImage = async (imageBuffer: Buffer, imageName: string) =>
+      this.s3StorageService.upload({ body: imageBuffer, name: imageName });
 
-    const detect = await this.azureAiVisionGatewayService.detect(detectBody);
-    if (detect[0].faceId && detect[1].faceId) {
-      const verifyBody = {
-        faceId1: detect[0].faceId,
-        faceId2: detect[1].faceId,
-      };
-      return this.azureAiVisionGatewayService.verify(verifyBody);
+    const [sourceImage, targetImage] = await Promise.all([
+      uploadImage(dto.sourceImage.buffer, uuidv4()),
+      uploadImage(dto.targetImage.buffer, uuidv4()),
+    ]);
+
+    if (!sourceImage || !targetImage) {
+      throw new Error('Failed to upload image');
     }
+
+    const response = await this.rekognitionService.compareFaces(
+      sourceImage.Key,
+      targetImage.Key,
+    );
+    return {
+      similarity: response.FaceMatches[0].Similarity,
+    };
   }
 }

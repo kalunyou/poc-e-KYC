@@ -1,12 +1,15 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsOptional } from 'class-validator';
 
 export class PocVerifyDto {
-  @IsNotEmpty()
-  @ApiProperty()
+  //Do not send this field
+  @IsOptional()
+  @ApiPropertyOptional()
   readonly name: string;
 
-  // @IsNotEmpty()
   @ApiProperty({ type: 'file' })
-  file: any;
+  sourceImage: any;
+
+  @ApiProperty({ type: 'file' })
+  targetImage: any;
 }
